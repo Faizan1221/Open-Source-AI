@@ -1,8 +1,8 @@
 [build]
-  publish = "frontend"
+builder = "NIXPACKS"
+watchPatterns = ["backend/**"]
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
+[deploy]
+startCommand = "gunicorn -w 4 -b 0.0.0.0:$PORT app:app"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
