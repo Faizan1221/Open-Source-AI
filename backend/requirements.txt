@@ -2,3 +2,5 @@ flask==3.0.3
 flask-cors==4.0.1
 chromadb==0.5.3
 gunicorn==22.0.0
+sentence-transformers
+pyttsx3
