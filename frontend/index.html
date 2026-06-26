@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Company Guide — AI Avatar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:         #1a56db;
+    --blue-mid:     #2563eb;
+    --blue-light:   #3b82f6;
+    --blue-pale:    #eff6ff;
+    --blue-mist:    #dbeafe;
+    --white:        #ffffff;
+    --off-white:    #f8faff;
+    --text-dark:    #1e293b;
+    --text-mid:     #475569;
+    --text-dim:     #94a3b8;
+    --glass-bg:     rgba(255,255,255,0.55);
+    --glass-border: rgba(37,99,235,0.18);
+    --glass-btn:    rgba(255,255,255,0.35);
+    --shadow-blue:  0 4px 24px rgba(37,99,235,0.15);
+    --shadow-soft:  0 2px 16px rgba(30,41,59,0.08);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(145deg, #eef4ff 0%, #f8faff 40%, #e8f0fe 100%);
+    min-height: 100vh;
+    color: var(--text-dark);
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(16px);
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: var(--shadow-soft);
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    color: var(--blue);
+    letter-spacing: 0.5px;
+  }
+  .logo span { color: var(--text-mid); font-weight: 300; }
+  #status-badge {
+    font-size: 0.75rem;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-btn);
+    backdrop-filter: blur(8px);
+    color: var(--text-dim);
+    transition: all 0.3s;
+  }
+  #status-badge.online  { border-color: #16a34a; color: #16a34a; background: rgba(22,163,74,0.08); }
+  #status-badge.offline { border-color: #dc2626; color: #dc2626; background: rgba(220,38,38,0.08); }
+
+  /* ── Main layout ── */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    height: calc(100vh - 61px);
+  }
+
+  /* ── Avatar Panel ── */
+  .avatar-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(160deg, #f0f6ff 0%, #e8f0fe 100%);
+  }
+  .avatar-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, rgba(59,130,246,0.12) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  /* Decorative circles */
+  .avatar-panel::after {
+    content: '';
+    position: absolute;
+    width: 340px; height: 340px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(37,99,235,0.1);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -52%);
+    pointer-events: none;
+  }
+
+  /* ── 3D Avatar Canvas ── */
+  #avatar-canvas {
+    width: 320px;
+    height: 420px;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 12px 32px rgba(37,99,235,0.18));
+  }
+
+  .avatar-name {
+    margin-top: 20px;
+    text-align: center;
+    z-index: 1;
+  }
+  .avatar-name h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    color: var(--blue);
+  }
+  .avatar-name p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* Speaking indicator */
+  .speaking-indicator {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    margin-top: 14px;
+    height: 24px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1;
+  }
+  .speaking-indicator.active { opacity: 1; }
+  .speaking-indicator span {
+    width: 4px;
+    border-radius: 2px;
+    background: var(--blue-mid);
+    animation: soundwave 0.8s ease-in-out infinite;
+  }
+  .speaking-indicator span:nth-child(1) { height: 8px;  animation-delay: 0s; }
+  .speaking-indicator span:nth-child(2) { height: 18px; animation-delay: 0.1s; }
+  .speaking-indicator span:nth-child(3) { height: 12px; animation-delay: 0.2s; }
+  .speaking-indicator span:nth-child(4) { height: 20px; animation-delay: 0.15s; }
+  .speaking-indicator span:nth-child(5) { height: 8px;  animation-delay: 0.05s; }
+  @keyframes soundwave {
+    0%,100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.3); }
+  }
+
+  /* ── Chat Panel ── */
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(12px);
+  }
+
+  .chat-header {
+    padding: 22px 28px 14px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.6);
+  }
+  .chat-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-dark);
+  }
+  .chat-header p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue-mist) transparent;
+  }
+
+  .message {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    animation: fadeUp 0.3s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .message.user {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+    border: none;
+    align-self: flex-end;
+    color: #ffffff;
+    box-shadow: var(--shadow-blue);
+  }
+  .message.avatar {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    align-self: flex-start;
+    color: var(--text-dark);
+    box-shadow: var(--shadow-soft);
+  }
+  .message.avatar .sender {
+    font-size: 0.7rem;
+    color: var(--blue-mid);
+    font-weight: 700;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .message.thinking {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    align-self: flex-start;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* ── Quick Questions ── */
+  .quick-questions {
+    padding: 0 28px 12px;
+  }
+  .quick-questions p {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 500;
+  }
+  .quick-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .quick-btn {
+    font-size: 0.75rem;
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-btn);
+    backdrop-filter: blur(8px);
+    color: var(--blue-mid);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+  }
+  .quick-btn:hover {
+    border-color: var(--blue-mid);
+    background: var(--blue-pale);
+    color: var(--blue);
+    box-shadow: 0 2px 10px rgba(37,99,235,0.12);
+  }
+
+  /* ── Input Area ── */
+  .input-area {
+    padding: 14px 28px 22px;
+    border-top: 1px solid var(--glass-border);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    background: rgba(255,255,255,0.7);
+  }
+  #question-input {
+    flex: 1;
+    background: rgba(255,255,255,0.8);
+    border: 1.5px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 11px 16px;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    font-family: 'Inter', sans-serif;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-soft);
+  }
+  #question-input::placeholder { color: var(--text-dim); }
+  #question-input:focus {
+    border-color: var(--blue-mid);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+
+  /* ── GLASS BLUE ASK BUTTON ── */
+  #ask-btn {
+    background: linear-gradient(135deg, rgba(37,99,235,0.9) 0%, rgba(59,130,246,0.85) 100%);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 11px 22px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #ffffff;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(37,99,235,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+    letter-spacing: 0.2px;
+  }
+  #ask-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 22px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.3);
+    background: linear-gradient(135deg, rgba(26,86,219,0.95) 0%, rgba(37,99,235,0.9) 100%);
+  }
+  #ask-btn:active:not(:disabled) { transform: translateY(0); }
+  #ask-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── GLASS VOICE BUTTON ── */
+  #voice-btn {
+    background: var(--glass-btn);
+    border: 1.5px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    cursor: pointer;
+    color: var(--blue-mid);
+    font-size: 1rem;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-soft);
+  }
+  #voice-btn:hover {
+    border-color: var(--blue-mid);
+    background: var(--blue-pale);
+    box-shadow: 0 2px 12px rgba(37,99,235,0.15);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: calc(100vh - 61px); }
+    .avatar-panel { padding: 24px; }
+    #avatar-canvas { width: 220px; height: 290px; }
+    .chat-panel { border-left: none; border-top: 1px solid var(--glass-border); }
+    header { padding: 12px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Infylearn <span>Guide</span></div>
+  <div id="status-badge">Connecting…</div>
+</header>
+
+<main>
+  <!-- ── Avatar Panel ── -->
+  <section class="avatar-panel">
+    <canvas id="avatar-canvas" width="320" height="420"></canvas>
+
+    <div class="avatar-name">
+      <h2>Alex</h2>
+      <p>Company Knowledge Guide</p>
+    </div>
+
+    <div class="speaking-indicator" id="speaking-indicator">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </section>
+
+  <!-- ── Chat Panel ── -->
+  <section class="chat-panel">
+    <div class="chat-header">
+      <h3>Ask Alex anything</h3>
+      <p>Your company's knowledge guide — HR, policies, benefits & more</p>
+    </div>
+
+    <div id="chat-messages">
+      <div class="message avatar">
+        <div class="sender">ALEX</div>
+        Hello! I'm Alex, your company knowledge guide. Ask me about HR policies, leave, benefits, working hours, or anything else about the company. How can I help you today?
+      </div>
+    </div>
+
+    <div class="quick-questions">
+      <p>Quick questions</p>
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="askQuestion('What are the working hours?')">Working hours</button>
+        <button class="quick-btn" onclick="askQuestion('How do I apply for leave?')">Apply for leave</button>
+        <button class="quick-btn" onclick="askQuestion('What benefits do employees get?')">Employee benefits</button>
+        <button class="quick-btn" onclick="askQuestion('What is the notice period?')">Notice period</button>
+        <button class="quick-btn" onclick="askQuestion('What is the work from home policy?')">WFH policy</button>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <textarea id="question-input" placeholder="Type your question…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendQuestion();}"></textarea>
+      <button id="voice-btn" title="Test voice" onclick="testVoice()">🔊</button>
+      <button id="ask-btn" onclick="sendQuestion()">Ask Alex</button>
+    </div>
+  </section>
+</main>
+
+<!-- ── Three.js CDN ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  CONFIGURATION — update BACKEND after Railway deploy
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const BACKEND = 'https://your-backend.up.railway.app';  // ← update this
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  3D AVATAR — Professional Businessman
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const canvas   = document.getElementById('avatar-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setSize(canvas.width, canvas.height);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 100);
+camera.position.set(0, 0.5, 4.5);
+
+// Lighting — tuned for white/blue theme
+const ambient = new THREE.AmbientLight(0xddeeff, 0.75);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.3);
+keyLight.position.set(2, 4, 3);
+keyLight.castShadow = true;
+scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.55);
+rimLight.position.set(-3, 2, -2);
+scene.add(rimLight);
+const fillLight = new THREE.PointLight(0x3b82f6, 0.6, 10);
+fillLight.position.set(-2, 0, 2);
+scene.add(fillLight);
+
+// ── Helper: rounded box ──
+function roundedBox(w, h, d, r, segs) {
+  const shape = new THREE.Shape();
+  const x = -w/2, y = -h/2;
+  shape.moveTo(x + r, y);
+  shape.lineTo(x + w - r, y);
+  shape.quadraticCurveTo(x + w, y, x + w, y + r);
+  shape.lineTo(x + w, y + h - r);
+  shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  shape.lineTo(x + r, y + h);
+  shape.quadraticCurveTo(x, y + h, x, y + h - r);
+  shape.lineTo(x, y + r);
+  shape.quadraticCurveTo(x, y, x + r, y);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelSize: r*0.5, bevelThickness: r*0.5, bevelSegments: segs || 3 });
+  geo.center();
+  return geo;
+}
+
+const avatarGroup = new THREE.Group();
+scene.add(avatarGroup);
+
+// ── Skin material ──
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5c5a0, roughness: 0.6, metalness: 0.05 });
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a0a00, roughness: 0.8 });
+const suitMat = new THREE.MeshStandardMaterial({ color: 0x1a3a6b, roughness: 0.65, metalness: 0.12 });
+const shirtMat= new THREE.MeshStandardMaterial({ color: 0xfafcff, roughness: 0.45 });
+const tieMat  = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.35, metalness: 0.15 });
+const eyeMat  = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.2 });
+const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+
+// ── HEAD ──
+const headGeo = new THREE.SphereGeometry(0.42, 32, 32);
+headGeo.scale(1, 1.1, 0.95);
+const head = new THREE.Mesh(headGeo, skinMat);
+head.position.set(0, 1.62, 0);
+head.castShadow = true;
+avatarGroup.add(head);
+
+// Jaw shape (chin)
+const chinGeo = new THREE.SphereGeometry(0.28, 20, 20);
+chinGeo.scale(1, 0.55, 0.9);
+const chin = new THREE.Mesh(chinGeo, skinMat);
+chin.position.set(0, 1.28, 0.05);
+avatarGroup.add(chin);
+
+// ── HAIR ──
+const hairGeo = new THREE.SphereGeometry(0.43, 32, 16, 0, Math.PI*2, 0, Math.PI*0.5);
+const hair = new THREE.Mesh(hairGeo, hairMat);
+hair.position.set(0, 1.66, -0.04);
+hair.rotation.x = -0.1;
+avatarGroup.add(hair);
+// Hair sides
+[-1,1].forEach(side => {
+  const sg = new THREE.SphereGeometry(0.36, 16, 16, 0, Math.PI*2, 0, Math.PI*0.6);
+  const sm = new THREE.Mesh(sg, hairMat);
+  sm.position.set(side * 0.32, 1.58, -0.05);
+  sm.rotation.z = side * 0.3;
+  avatarGroup.add(sm);
+});
+
+// ── EYES ──
+[-1,1].forEach(side => {
+  const ew = new THREE.Mesh(new THREE.SphereGeometry(0.075,16,16), eyeWhiteMat);
+  ew.position.set(side * 0.16, 1.65, 0.34);
+  avatarGroup.add(ew);
+  const ep = new THREE.Mesh(new THREE.SphereGeometry(0.045,12,12), eyeMat);
+  ep.position.set(side * 0.16, 1.65, 0.38);
+  avatarGroup.add(ep);
+  // Eyebrow
+  const ebGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.14, 8);
+  ebGeo.rotateZ(side * 0.18);
+  const eb = new THREE.Mesh(ebGeo, hairMat);
+  eb.position.set(side * 0.16, 1.74, 0.36);
+  avatarGroup.add(eb);
+});
+
+// ── NOSE ──
+const noseGeo = new THREE.SphereGeometry(0.055, 12, 12);
+noseGeo.scale(0.8, 0.7, 1.2);
+const nose = new THREE.Mesh(noseGeo, skinMat);
+nose.position.set(0, 1.56, 0.4);
+avatarGroup.add(nose);
+
+// ── MOUTH ──
+const mouthGeo = new THREE.TorusGeometry(0.08, 0.018, 8, 20, Math.PI);
+const mouth = new THREE.Mesh(mouthGeo, new THREE.MeshStandardMaterial({ color: 0xc47060, roughness: 0.5 }));
+mouth.position.set(0, 1.46, 0.38);
+mouth.rotation.z = Math.PI;
+avatarGroup.add(mouth);
+
+// ── EARS ──
+[-1,1].forEach(side => {
+  const eg = new THREE.SphereGeometry(0.1,12,12);
+  eg.scale(0.5,0.85,0.7);
+  const ear = new THREE.Mesh(eg, skinMat);
+  ear.position.set(side * 0.44, 1.6, 0);
+  avatarGroup.add(ear);
+});
+
+// ── NECK ──
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.16,0.28,16), skinMat);
+neck.position.set(0, 1.12, 0);
+avatarGroup.add(neck);
+
+// ── TORSO (suit jacket) ──
+const torsoGeo = roundedBox(0.82, 1.0, 0.42, 0.06, 3);
+const torso = new THREE.Mesh(torsoGeo, suitMat);
+torso.position.set(0, 0.42, 0);
+torso.castShadow = true;
+avatarGroup.add(torso);
+
+// Shirt / collar
+const shirtGeo = roundedBox(0.3, 0.65, 0.44, 0.03, 2);
+const shirt = new THREE.Mesh(shirtGeo, shirtMat);
+shirt.position.set(0, 0.42, 0.01);
+avatarGroup.add(shirt);
+
+// Tie
+const tieGeo = new THREE.CylinderGeometry(0.03, 0.055, 0.55, 6);
+const tie = new THREE.Mesh(tieGeo, tieMat);
+tie.position.set(0, 0.35, 0.22);
+avatarGroup.add(tie);
+const tieKnot = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.07,0.06), tieMat);
+tieKnot.position.set(0, 0.63, 0.22);
+avatarGroup.add(tieKnot);
+
+// Lapels
+[-1,1].forEach(side => {
+  const lapelGeo = new THREE.BoxGeometry(0.18, 0.38, 0.08);
+  const lapel = new THREE.Mesh(lapelGeo, suitMat);
+  lapel.position.set(side * 0.2, 0.62, 0.19);
+  lapel.rotation.z = side * 0.3;
+  lapel.rotation.y = -side * 0.2;
+  avatarGroup.add(lapel);
+});
+
+// ── SUIT COLLAR ──
+const collarMat = new THREE.MeshStandardMaterial({ color: 0xf0f4ff, roughness: 0.4 });
+[-1,1].forEach(side => {
+  const cg = new THREE.BoxGeometry(0.12, 0.14, 0.06);
+  const c = new THREE.Mesh(cg, collarMat);
+  c.position.set(side * 0.1, 0.95, 0.2);
+  c.rotation.z = -side * 0.4;
+  avatarGroup.add(c);
+});
+
+// ── SHOULDERS ──
+[-1,1].forEach(side => {
+  const sg = new THREE.SphereGeometry(0.22,16,16);
+  sg.scale(1.1, 0.85, 0.9);
+  const shoulder = new THREE.Mesh(sg, suitMat);
+  shoulder.position.set(side * 0.52, 0.85, 0);
+  avatarGroup.add(shoulder);
+});
+
+// ── ARMS ──
+[-1,1].forEach(side => {
+  // Upper arm
+  const ua = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.10,0.52,12), suitMat);
+  ua.position.set(side * 0.58, 0.56, 0);
+  ua.rotation.z = side * 0.12;
+  avatarGroup.add(ua);
+  // Forearm
+  const fa = new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.08,0.46,12), suitMat);
+  fa.position.set(side * 0.65, 0.16, 0.08);
+  fa.rotation.z = side * 0.22;
+  fa.rotation.x = 0.18;
+  avatarGroup.add(fa);
+  // Cuff (white shirt sleeve end)
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.07,12), shirtMat);
+  cuff.position.set(side * 0.70, -0.06, 0.13);
+  cuff.rotation.z = side * 0.22;
+  cuff.rotation.x = 0.18;
+  avatarGroup.add(cuff);
+  // Hand
+  const hg = new THREE.SphereGeometry(0.1,12,12);
+  hg.scale(1, 0.85, 0.75);
+  const hand = new THREE.Mesh(hg, skinMat);
+  hand.position.set(side * 0.73, -0.16, 0.16);
+  avatarGroup.add(hand);
+});
+
+// ── LOWER BODY (trousers) ──
+const trouserMat = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: 0.75 });
+const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.30, 0.18, 16), trouserMat);
+waist.position.set(0, -0.12, 0);
+avatarGroup.add(waist);
+[-1,1].forEach(side => {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.62, 12), trouserMat);
+  leg.position.set(side * 0.17, -0.52, 0);
+  avatarGroup.add(leg);
+  // Shoe
+  const shoeGeo = new THREE.SphereGeometry(0.14, 12, 8);
+  shoeGeo.scale(1.5, 0.55, 0.9);
+  const shoe = new THREE.Mesh(shoeGeo, new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.4, metalness: 0.3 }));
+  shoe.position.set(side * 0.18, -0.86, 0.06);
+  avatarGroup.add(shoe);
+});
+
+// Slight downward offset so feet are at bottom of canvas
+avatarGroup.position.y = -0.4;
+
+// ── ANIMATION STATE ──
+let isSpeaking    = false;
+let idleTime      = 0;
+let blinkTimer    = 0;
+let blinkDuration = 0;
+let isBlinking    = false;
+let mouthOpen     = 0;
+let breathePhase  = 0;
+
+// Store eye refs for blinking
+const leftEye  = avatarGroup.children.find((_, i) => {
+  // We'll use the mouth scale for talking animation instead
+  return false;
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = Date.now() * 0.001;
+
+  // Idle sway
+  avatarGroup.rotation.y = Math.sin(t * 0.4) * 0.04;
+
+  // Breathing
+  breathePhase += 0.018;
+  const breathe = Math.sin(breathePhase) * 0.008;
+  torso.scale.y = 1 + breathe;
+  torso.scale.x = 1 - breathe * 0.3;
+
+  // Talking jaw
+  if (isSpeaking) {
+    mouthOpen = Math.abs(Math.sin(t * 9)) * 0.06;
+    chin.position.y = 1.28 - mouthOpen;
+    mouth.scale.y   = 1 + mouthOpen * 8;
+    // Slight head nod while speaking
+    head.rotation.x = Math.sin(t * 3.5) * 0.04;
+  } else {
+    chin.position.y += (1.28 - chin.position.y) * 0.1;
+    mouth.scale.y   += (1 - mouth.scale.y) * 0.1;
+    head.rotation.x *= 0.9;
+  }
+
+  // Blink
+  blinkTimer += 0.016;
+  if (!isBlinking && blinkTimer > 3 + Math.random() * 3) {
+    isBlinking    = true;
+    blinkDuration = 0;
+    blinkTimer    = 0;
+  }
+  if (isBlinking) {
+    blinkDuration += 0.1;
+    const blinkScale = blinkDuration < 0.5
+      ? 1 - blinkDuration * 2
+      : (blinkDuration - 0.5) * 2;
+    // Scale eye whites on Y axis to simulate blink
+    avatarGroup.children.forEach(child => {
+      if (child.geometry instanceof THREE.SphereGeometry &&
+          child.material === eyeWhiteMat) {
+        child.scale.y = Math.max(0.1, blinkScale);
+      }
+    });
+    if (blinkDuration >= 1) {
+      isBlinking = false;
+      avatarGroup.children.forEach(child => {
+        if (child.material === eyeWhiteMat) child.scale.y = 1;
+      });
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  STATUS CHECK
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const badge = document.getElementById('status-badge');
+
+async function checkStatus() {
+  try {
+    const res  = await fetch(`${BACKEND}/health`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    badge.textContent  = `KB: ${data.entries} Q&A pairs loaded`;
+    badge.className    = 'online';
+  } catch {
+    badge.textContent = 'Backend offline';
+    badge.className   = 'offline';
+  }
+}
+checkStatus();
+setInterval(checkStatus, 30000);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  CHAT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const messagesEl  = document.getElementById('chat-messages');
+const inputEl     = document.getElementById('question-input');
+const askBtn      = document.getElementById('ask-btn');
+const speakingEl  = document.getElementById('speaking-indicator');
+
+function addMessage(text, type) {
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  if (type === 'avatar') {
+    div.innerHTML = `<div class="sender">ALEX</div>${text}`;
+  } else {
+    div.textContent = text;
+  }
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate   = 0.95;
+  utt.pitch  = 0.95;
+  utt.volume = 1;
+
+  // Prefer a natural male English voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v =>
+    v.lang.startsWith('en') &&
+    (v.name.includes('Daniel') || v.name.includes('David') ||
+     v.name.includes('Alex')   || v.name.includes('Google UK'))
+  ) || voices.find(v => v.lang.startsWith('en'));
+  if (preferred) utt.voice = preferred;
+
+  utt.onstart = () => {
+    isSpeaking = true;
+    speakingEl.classList.add('active');
+  };
+  utt.onend = utt.onerror = () => {
+    isSpeaking = false;
+    speakingEl.classList.remove('active');
+  };
+  window.speechSynthesis.speak(utt);
+}
+
+function testVoice() {
+  speak("Hello! I'm Alex, your company knowledge guide. I'm here to help you.");
+}
+
+async function sendQuestion() {
+  const q = inputEl.value.trim();
+  if (!q) return;
+  askQuestion(q);
+}
+
+async function askQuestion(question) {
+  inputEl.value = '';
+  askBtn.disabled = true;
+
+  addMessage(question, 'user');
+  const thinking = addMessage('Thinking…', 'thinking');
+
+  try {
+    const res  = await fetch(`${BACKEND}/ask`, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ question }),
+      signal : AbortSignal.timeout(10000)
+    });
+    const data = await res.json();
+    thinking.remove();
+    addMessage(data.answer, 'avatar');
+    speak(data.answer);
+  } catch (err) {
+    thinking.remove();
+    const msg = 'I could not reach the backend. Please check that the Railway service is running.';
+    addMessage(msg, 'avatar');
+    speak(msg);
+  } finally {
+    askBtn.disabled = false;
+  }
+}
+
+// Load voices after page interaction
+window.speechSynthesis.onvoiceschanged = () => {};
+</script>
+</body>
+</html>
