@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc-unwrapped", "zlib"]
+nixPkgs = ["python311", "stdenv.cc.cc", "zlib"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["python -c \"from sklearn.feature_extraction.text import TfidfVectorizer; print('sklearn ok')\""]
 
 [start]
 cmd = "gunicorn -w 4 -b 0.0.0.0:$PORT app:app"
