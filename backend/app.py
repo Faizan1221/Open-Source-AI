@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "chromadb", "sentence-transformers", "pyttsx3"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-cache-dir", "chromadb==0.5.3", "sentence-transformers==2.7.0"])
 import os
 import chromadb
 from flask import Flask, request, jsonify
