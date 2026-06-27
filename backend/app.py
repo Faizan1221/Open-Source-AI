@@ -1,28 +1,26 @@
 import os
 import csv
 import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sentence_transformers import SentenceTransformer
 
 app = Flask(__name__)
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*')
 CORS(app, origins=ALLOWED_ORIGINS.split(','))
 
-SIMILARITY_THRESHOLD = float(os.environ.get('SIMILARITY_THRESHOLD', '0.70'))
+SIMILARITY_THRESHOLD = float(os.environ.get('SIMILARITY_THRESHOLD', '0.15'))
 KB_PATH = os.environ.get('KB_PATH', './knowledge_base.csv')
 
-# Load model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# In-memory knowledge base
 questions = []
 answers = []
-embeddings = []
+vectorizer = None
+matrix = None
 
 def load_knowledge_base():
-    global questions, answers, embeddings
+    global questions, answers, vectorizer, matrix
     if not os.path.exists(KB_PATH):
         print(f"Knowledge base not found at {KB_PATH}")
         return
@@ -35,17 +33,14 @@ def load_knowledge_base():
             if q and a:
                 pairs.append((q, a))
     if not pairs:
-        print("No Q&A pairs found in CSV.")
+        print("No Q&A pairs found.")
         return
     questions = [p[0] for p in pairs]
     answers   = [p[1] for p in pairs]
-    embeddings = model.encode(questions, normalize_embeddings=True)
-    print(f"Loaded {len(pairs)} Q&A pairs into memory.")
+    vectorizer = TfidfVectorizer()
+    matrix = vectorizer.fit_transform(questions)
+    print(f"Loaded {len(pairs)} Q&A pairs.")
 
-def cosine_similarity(query_emb, corpus_emb):
-    return np.dot(corpus_emb, query_emb)
-
-# Load on startup
 load_knowledge_base()
 
 @app.route('/health', methods=['GET'])
@@ -56,34 +51,17 @@ def health():
 def ask():
     data     = request.get_json(force=True)
     question = data.get('question', '').strip()
-
     if not question:
         return jsonify({"error": "No question provided"}), 400
-
     if not questions:
-        return jsonify({
-            "answer"  : "My knowledge base is still being loaded. Please try again shortly.",
-            "in_scope": False,
-            "score"   : 0.0
-        })
-
-    query_emb = model.encode([question], normalize_embeddings=True)[0]
-    scores    = cosine_similarity(query_emb, embeddings)
+        return jsonify({"answer": "Knowledge base not loaded.", "in_scope": False, "score": 0.0})
+    query_vec = vectorizer.transform([question])
+    scores    = cosine_similarity(query_vec, matrix).flatten()
     best_idx  = int(np.argmax(scores))
     best_score = float(scores[best_idx])
-
     if best_score < SIMILARITY_THRESHOLD:
-        return jsonify({
-            "answer"  : "I'm not sure about that one. Please contact HR or your manager for more details.",
-            "in_scope": False,
-            "score"   : round(best_score, 4)
-        })
-
-    return jsonify({
-        "answer"  : answers[best_idx],
-        "in_scope": True,
-        "score"   : round(best_score, 4)
-    })
+        return jsonify({"answer": "I'm not sure about that. Please contact HR or your manager.", "in_scope": False, "score": round(best_score, 4)})
+    return jsonify({"answer": answers[best_idx], "in_scope": True, "score": round(best_score, 4)})
 
 @app.route('/entries', methods=['GET'])
 def entries():
